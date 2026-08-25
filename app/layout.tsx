@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import { Mona_Sans, Geist } from "next/font/google";
-import "./globals.css";
-import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+import { Mona_Sans } from "next/font/google";
+import "@/app/globals.css";
 
 const monaSans = Mona_Sans({
   variable: "--font-mona-sans",
@@ -17,8 +14,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={cn("dark", "font-sans", geist.variable)}>
-      <body className={`${monaSans.className} antialiased`}>{children}</body>
+    <html lang="en" className="dark">
+      <body className={`${monaSans.className} antialiaseds pattern`}>{children}</body>
     </html>
   );
 }
