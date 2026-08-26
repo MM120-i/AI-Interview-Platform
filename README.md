@@ -1,36 +1,118 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PrepPilot — AI Mock Interview Platform
+
+AI-powered mock interview app to practice real interview questions and get instant feedback. Built with Next.js 16, React 19, Tailwind CSS v4.
+
+## Features
+
+- **AI Interview Practice** — `app/(root)/page.tsx` CTA `Start an Interview` → `/interview` (Vapi + LLM integration ready)
+- **Auth** — `app/(auth)/sign-in`, `app/(auth)/sign-up` with `components/AuthForm.tsx` (react-hook-form + zod)
+- **Reusable Form** — `components/FormField.tsx` generic `<T extends FieldValues>` wrapper around `components/ui/form.tsx`
+- **Toasts** — `sonner` via `app/layout.tsx:21`
+- **Design System** — shadcn `base-nova`, `dark` mode, `Mona Sans`, custom `@theme` tokens in `app/globals.css`
+
+## Tech Stack
+
+| Layer     | Choice                                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------------------------ |
+| Framework | `next@16.3.2` (Turbopack), `react@19.2.8`                                                                    |
+| Styling   | `tailwindcss@4`, `@tailwindcss/postcss@4`, `tw-animate-css@1.4.0` (v4 replacement for `tailwindcss-animate`) |
+| UI        | `shadcn@4.19.0`, `@base-ui/react@1.7.0`, `class-variance-authority`, `lucide-react`                          |
+| Forms     | `react-hook-form@7.86`, `@hookform/resolvers@5.9`, `zod@4.4.3` (`z.email()` not `z.string().email()`)        |
+| Tooling   | `typescript@5`, `eslint@9` (flat config), `prettier@3.9` + `prettier-plugin-tailwindcss@0.8`                 |
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# install
+npm install
+
+# dev (Turbopack)
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# → http://localhost:3000
+
+# build
+npm run build
+npm start
+
+# lint / format
+npm run lint
+npx prettier --check .
+npx prettier --write .
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+No env required yet. When adding Firebase/Vapi/Gemini, create `.env.local`:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+# Firebase
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+# Vapi
+NEXT_PUBLIC_VAPI_WEB_TOKEN=
+# Google AI
+GOOGLE_GENERATIVE_AI_API_KEY=
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+app/
+  layout.tsx          # Root layout, Mona_Sans, Toaster, metadata "PrepPilot"
+  globals.css         # @import "tailwindcss"; @import "tw-animate-css"; @theme tokens
+  (root)/
+    layout.tsx        # Nav with logo.svg + {children}
+    page.tsx          # Hero card-cts + robot.png
+  (auth)/
+    layout.tsx        # Auth layout
+    sign-in/page.tsx  # <AuthForm type="sign-in" />
+    sign-up/page.tsx  # <AuthForm type="sign-up" />
+components/
+  AuthForm.tsx        # Client form, AuthFormSchema(type), zodResolver, toast + router
+  FormField.tsx       # Generic <T extends FieldValues> Controller wrapper
+  ui/
+    button.tsx        # Base UI Button + cva variants, supports `asChild` → `render`
+    input.tsx         # Base UI Input
+    form.tsx          # FormProvider, FormField, FormItem, FormControl, FormLabel, Message
+    sonner.tsx
+    label (inline)    # Native <label> (Base UI has no separate label pkg)
+lib/utils.ts          # cn() — clsx + tailwind-merge
+.vscode/
+  settings.json       # formatOnSave, defaultFormatter prettier, tailwindCSS config
+  extensions.json     # recommends bradlc.vscode-tailwindcss
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Notable Modernization vs Tutorial (1 year old)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Tailwind v4** — use `@import "tw-animate-css"` not `@plugin "tailwindcss-animate"` (`app/globals.css:2`)
+- **shadcn base-nova** — Button uses `@base-ui/react` `render` prop, not Radix `asChild`/`Slot`. `components/ui/button.tsx` maps `asChild` → `render` for compatibility
+- **Form** — `components/ui/form.tsx` is not shipped by `shadcn add` in v4; created manually. Import from `@/components/ui/form` not `input`
+- **Zod 4** — `z.string().email()` deprecated → `z.email()` (`components/AuthForm.tsx:17`)
+- **Generic FormField** — `const FormField = <T extends FieldValues>(props: FormFieldProps<T>)` required
+- **next/image** — SVG needs `unoptimized` + `style={{width:"auto",height:"auto"}}` to avoid aspect-ratio warning; same for `robot.png`
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Scripts
 
-## Deploy on Vercel
+| Script          | What                                         |
+| --------------- | -------------------------------------------- |
+| `npm run dev`   | `next dev` with Turbopack                    |
+| `npm run build` | `next build`                                 |
+| `npm run lint`  | `eslint` (next/core-web-vitals + typescript) |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## VS Code
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Recommended extensions auto-prompt from `.vscode/extensions.json`:
+
+- `bradlc.vscode-tailwindcss` — IntelliSense for Tailwind v4
+- `esbenp.prettier-vscode` — formatter (already set as `editor.defaultFormatter`)
+
+Prettier sorts Tailwind classes on save via `prettier-plugin-tailwindcss` (`tailwindStylesheet: ./app/globals.css`).
+
+## Roadmap
+
+- [ ] Firebase Auth + Firestore
+- [ ] Vapi voice interview `app/(root)/interview/[id]/page.tsx`
+- [ ] Gemini feedback generation (Server Actions)
+- [ ] Dashboard history `interviews-section`
+
+## License
+
+MIT — tutorial code for learning.
