@@ -14,7 +14,7 @@ import { useRouter } from "next/navigation";
 const AuthFormSchema = (type: FormType) => {
   return z.object({
     name: type === "sign-up" ? z.string().min(3) : z.string().optional(),
-    email: z.string().email(), // TODO: CHANGE email()
+    email: z.email(),
     password: z.string().min(3),
   });
 };
@@ -53,7 +53,14 @@ const AuthForm = ({ type }: { type: FormType }) => {
     <div className="card-border lg:min-w-141.5">
       <div className="card flex flex-col gap-6 px-10 py-14">
         <div className="flex flex-row justify-center gap-2">
-          <Image src={"/logo.svg"} alt="logo" height={32} width={38} />
+          <Image
+            src={"/logo.svg"}
+            alt="logo"
+            height={32}
+            width={38}
+            style={{ width: "auto", height: "auto" }}
+            unoptimized
+          />
           <h2 className="text-primary-100">PrepPilot</h2>
         </div>
         <h3>Practice Job interviews with AI</h3>
