@@ -4,6 +4,9 @@ import { getRandomInterviewCover } from "@/lib/utils";
 import dayjs from "dayjs";
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import DisplayTechIcons from "./DisplayTechIcons";
 
 const InterviewCard = ({
   interviewId,
@@ -35,6 +38,31 @@ const InterviewCard = ({
             height={90}
             className="object-fit size-22.5 rounded-full"
           />
+          <h3 className="mt-5 capitalize">{role} Interview</h3>
+          <div className="mt-3 flex flex-row gap-5">
+            <div className="flex flex-row gap-2">
+              <Image src={"/calendar.svg"} alt="calender" width={22} height={22} />
+              <p>{formattedDate}</p>
+            </div>
+            <div className="flex flex-row items-center gap-2">
+              <Image src={"/star.svg"} alt="star" width={22} height={22} />
+              <p>{feedback?.totalScore || "--"} / 100</p>
+            </div>
+          </div>
+          <p className="mt-5 line-clamp-2">
+            {feedback?.finalAssessment || "You have not taken the interview"}
+          </p>
+        </div>
+        <div className="flex flex-row justify-between">
+          <p>Tech Icons</p>
+          <DisplayTechIcons techStack={techstack} />
+          <Button className="btn-primary">
+            <Link
+              href={feedback ? `/interview/${interviewId}/feedback` : `/interview/${interviewId}`}
+            >
+              {feedback ? "Check Feedback" : "View Interview"}
+            </Link>
+          </Button>
         </div>
       </div>
     </div>
