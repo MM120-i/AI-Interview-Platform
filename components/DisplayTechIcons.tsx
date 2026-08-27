@@ -1,8 +1,8 @@
 import { cn, getTechLogos } from "@/lib/utils";
 import Image from "next/image";
 
-const DisplayTechIcons = async ({ techStack }: TechIconProps) => {
-  const techIcons = await getTechLogos(techStack);
+const DisplayTechIcons = ({ techStack }: TechIconProps) => {
+  const techIcons = getTechLogos(techStack);
 
   return (
     <div className="flex flex-row">
@@ -10,7 +10,7 @@ const DisplayTechIcons = async ({ techStack }: TechIconProps) => {
         <div
           key={tech}
           className={cn(
-            "reative group flex-center rounded-full bg-dark-300 p-2",
+            "relative group flex-center rounded-full bg-dark-300 p-2",
             index >= 1 && "-ml-3"
           )}
         >

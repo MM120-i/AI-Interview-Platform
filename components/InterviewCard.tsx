@@ -23,6 +23,7 @@ const InterviewCard = ({
     () => dayjs(feedback?.createdAt || createdAt || fallbackDate).format("MMM D, YYYY"),
     [feedback?.createdAt, createdAt, fallbackDate]
   );
+  const coverSrc = useMemo(() => getRandomInterviewCover(interviewId), [interviewId]);
 
   return (
     <div className="card-border min-h:96 w-90 max-sm:w-full">
@@ -32,7 +33,7 @@ const InterviewCard = ({
             <p className="badge-text">{normalizedTypes}</p>
           </div>
           <Image
-            src={getRandomInterviewCover()}
+            src={coverSrc}
             alt="cover image"
             width={90}
             height={90}
@@ -41,11 +42,18 @@ const InterviewCard = ({
           <h3 className="mt-5 capitalize">{role} Interview</h3>
           <div className="mt-3 flex flex-row gap-5">
             <div className="flex flex-row gap-2">
-              <Image src={"/calendar.svg"} alt="calender" width={22} height={22} />
+              <Image
+                src={"/calendar.svg"}
+                alt="calender"
+                width={22}
+                height={22}
+                style={{ width: "auto", height: "auto" }}
+                unoptimized
+              />
               <p>{formattedDate}</p>
             </div>
             <div className="flex flex-row items-center gap-2">
-              <Image src={"/star.svg"} alt="star" width={22} height={22} />
+              <Image src={"/star.svg"} alt="star" width={22} height={22} style={{ width: "auto", height: "auto" }} unoptimized />
               <p>{feedback?.totalScore || "--"} / 100</p>
             </div>
           </div>

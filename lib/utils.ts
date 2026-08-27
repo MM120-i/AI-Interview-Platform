@@ -9,39 +9,31 @@ const normalizeTechName = (tech: string) => {
   return mappings[key as keyof typeof mappings];
 };
 
-const checkIconExists = async (url: string) => {
-  try {
-    const response = await fetch(url, { method: "HEAD" });
-    return response.ok;
-  } catch {
-    return false;
-  }
-};
-
-export const getTechLogos = async (techArray: string[]) => {
-  const logoURLs = techArray.map((tech) => {
+export const getTechLogos = (techArray: string[]) => {
+  return techArray.map((tech) => {
     const normalized = normalizeTechName(tech);
+    const url = normalized
+      ? `${techIconBaseURL}/${normalized}/${normalized}-original.svg`
+      : "/tech.svg";
+
     return {
       tech,
-      url: `${techIconBaseURL}/${normalized}/${normalized}-original.svg`,
+      url,
     };
   });
-
-  const results = await Promise.all(
-    logoURLs.map(async ({ tech, url }) => ({
-      tech,
-      url: (await checkIconExists(url)) ? url : "/tech.svg",
-    }))
-  );
-
-  return results;
 };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const getRandomInterviewCover = () => {
-  const randomIndex = Math.floor(Math.random() * interviewCovers.length);
-  return `/covers${interviewCovers[randomIndex]}`;
+export const getRandomInterviewCover = (id?: string) => {
+  const seed = id ?? "default";
+  let hash = 0;
+
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+
+  return `/covers${interviewCovers[hash % interviewCovers.length]}`;
 };
