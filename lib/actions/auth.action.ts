@@ -8,6 +8,10 @@ const ONE_WEEK = 60 * 60 * 24 * 7;
 export const signUp = async (params: SignUpParams) => {
   const { uid, name, email } = params;
 
+  if (!db) {
+    return { success: false, message: "Firebase admin not configured — check env vars" };
+  }
+
   try {
     const userRecord = await db.collection("users").doc(uid).get();
 
@@ -50,6 +54,9 @@ export const signUp = async (params: SignUpParams) => {
 };
 
 export const setSessionCookie = async (idToken: string) => {
+  if (!auth) {
+    throw new Error("Firebase admin not initialized — cannot create session cookie");
+  }
   const cookieStore = await cookies();
 
   const sessionCookie = await auth.createSessionCookie(idToken, {
@@ -67,6 +74,10 @@ export const setSessionCookie = async (idToken: string) => {
 
 export const signIn = async (params: SignInParams) => {
   const { email, idToken } = params;
+
+  if (!auth || !db) {
+    return { success: false, message: "Firebase admin not configured — check env vars" };
+  }
 
   try {
     const userRecord = await auth.getUserByEmail(email);
@@ -90,6 +101,10 @@ export const signIn = async (params: SignInParams) => {
 };
 
 export const getCurrentUser = async (): Promise<User | null> => {
+  if (!auth || !db) {
+    console.warn("Firebase admin not initialized — getCurrentUser returns null");
+    return null;
+  }
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get("session")?.value;
 
