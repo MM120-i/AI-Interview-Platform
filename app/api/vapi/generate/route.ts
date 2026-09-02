@@ -22,8 +22,7 @@ export const POST = async (request: Request) => {
       return JSON.parse(arrayMatch[0]);
     };
 
-    // Free LLM — Groq (no billing card, generous free tier). Get key at https://console.groq.com/keys
-    // groq/compound is reasoning-heavy (adds **Reasoning**), so we parse JSON array out; gpt-oss is cleaner for JSON
+    // TODO: Groq free model is used for now to get it working, but we may need to change this out later.
     const { text: questions } = await generateText({
       model: groq("openai/gpt-oss-20b"),
       prompt: `Prepare questions for a job interview. 
