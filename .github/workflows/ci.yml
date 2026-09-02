@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "workflow", "develop"]
+  pull_request:
+    branches: ["main", "workflow"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Type check
+        run: npx tsc --noEmit --skipLibCheck
+
+      - name: Tests
+        run: npm test
+
+      - name: Build (Next.js)
+        run: npm run build
