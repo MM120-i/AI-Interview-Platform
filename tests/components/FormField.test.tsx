@@ -13,9 +13,16 @@ function Wrapper({ type = "text", placeholder }: { type?: string; placeholder?: 
     resolver: zodResolver(schema),
     defaultValues: { username: "" },
   });
+
   return (
     <Form {...form}>
-      <FormField control={form.control} name="username" label="Username" placeholder={placeholder} type={type as never} />
+      <FormField
+        control={form.control}
+        name="username"
+        label="Username"
+        placeholder={placeholder}
+        type={type as never}
+      />
     </Form>
   );
 }
@@ -23,7 +30,6 @@ function Wrapper({ type = "text", placeholder }: { type?: string; placeholder?: 
 describe("FormField", () => {
   it("renders label and input", () => {
     render(<Wrapper label-test placeholder="Enter name" />);
-    // Actually we pass label via FormField
     render(<Wrapper />);
     expect(screen.getAllByText("Username").length).toBeGreaterThan(0);
     expect(screen.getAllByPlaceholderText("Enter name").length).toBeGreaterThan(0);

@@ -21,6 +21,7 @@ vi.mock("@/firebase/admin", () => ({
 
 const mockCookiesGet = vi.fn();
 const mockCookiesSet = vi.fn();
+
 vi.mock("next/headers", () => ({
   cookies: async () => ({
     get: mockCookiesGet,
@@ -60,6 +61,7 @@ describe("auth actions", () => {
         id: "user123",
         data: () => ({ name: "John", email: "john@test.com" }),
       });
+
       const user = await getCurrentUser();
       expect(user).toEqual({ name: "John", email: "john@test.com", id: "user123" });
     });
@@ -91,14 +93,28 @@ describe("auth actions", () => {
     it("creates new user when not exists", async () => {
       mockGet.mockResolvedValue({ exists: false });
       mockSet.mockResolvedValue({});
-      const result = await signUp({ uid: "uid1", name: "John", email: "john@test.com", password: "pass" });
+
+      const result = await signUp({
+        uid: "uid1",
+        name: "John",
+        email: "john@test.com",
+        password: "pass",
+      });
+
       expect(result.success).toBe(true);
       expect(mockSet).toHaveBeenCalledWith({ name: "John", email: "john@test.com" });
     });
 
     it("returns false when user already exists", async () => {
       mockGet.mockResolvedValue({ exists: true });
-      const result = await signUp({ uid: "uid1", name: "John", email: "john@test.com", password: "pass" });
+
+      const result = await signUp({
+        uid: "uid1",
+        name: "John",
+        email: "john@test.com",
+        password: "pass",
+      });
+
       expect(result.success).toBe(false);
       expect(result.message).toMatch(/already exists/);
     });

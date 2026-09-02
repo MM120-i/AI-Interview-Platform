@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import InterviewCard from "@/components/InterviewCard";
 
-// Mock dayjs to make date deterministic
 vi.mock("dayjs", () => ({
   __esModule: true,
   default: (date: unknown) => ({

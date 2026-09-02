@@ -4,14 +4,19 @@ import userEvent from "@testing-library/user-event";
 import AuthForm from "@/components/AuthForm";
 
 const push = vi.fn();
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
   redirect: vi.fn(),
 }));
 
 vi.mock("firebase/auth", () => ({
-  createUserWithEmailAndPassword: vi.fn().mockResolvedValue({ user: { uid: "uid123", getIdToken: () => Promise.resolve("token") } }),
-  signInWithEmailAndPassword: vi.fn().mockResolvedValue({ user: { getIdToken: () => Promise.resolve("idToken123") } }),
+  createUserWithEmailAndPassword: vi
+    .fn()
+    .mockResolvedValue({ user: { uid: "uid123", getIdToken: () => Promise.resolve("token") } }),
+  signInWithEmailAndPassword: vi
+    .fn()
+    .mockResolvedValue({ user: { getIdToken: () => Promise.resolve("idToken123") } }),
 }));
 
 vi.mock("@/firebase/client", () => ({
@@ -46,6 +51,7 @@ describe("AuthForm", () => {
 
   it("toggles link text based on type", () => {
     const { rerender } = render(<AuthForm type="sign-in" />);
+
     expect(screen.getByText("No Account yet?")).toBeInTheDocument();
     rerender(<AuthForm type="sign-up" />);
     expect(screen.getByText("Have an account already?")).toBeInTheDocument();
@@ -76,10 +82,9 @@ describe("AuthForm", () => {
     await user.type(screen.getByPlaceholderText("Your Email Address"), "john@example.com");
     await user.type(screen.getByPlaceholderText("Your password"), "123");
     await user.click(screen.getByRole("button", { name: "Create an Account" }));
-    // FormMessage should appear via zodResolver
+
     await waitFor(() => {
       const messages = document.body.textContent || "";
-      // either zod error or not submitted — at least not redirected
       expect(push).not.toHaveBeenCalledWith("/sign-in");
     });
   });

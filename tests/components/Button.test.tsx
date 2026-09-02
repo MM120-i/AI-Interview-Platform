@@ -19,13 +19,14 @@ describe("Button", () => {
   });
 
   it("supports asChild mapping to Base UI render", () => {
-    // asChild uses Base UI render prop — renders <a> as button (role=button, href preserved)
     render(
       <Button asChild>
         <a href="/interview">Start</a>
       </Button>
     );
+
     const el = screen.getByRole("button", { name: "Start" });
+
     expect(el).toBeInTheDocument();
     expect(el).toHaveAttribute("href", "/interview");
     expect(el.tagName.toLowerCase()).toBe("a");
