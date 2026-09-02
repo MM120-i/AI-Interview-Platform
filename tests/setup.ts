@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { vi } from "vitest";
+import { vi, beforeAll, afterAll } from "vitest";
 
 // Mock next/font/google
 vi.mock("next/font/google", () => ({
