@@ -1,5 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 import { vi, beforeAll, afterAll } from "vitest";
+import { createElement } from "react";
 
 // Mock next/font/google
 vi.mock("next/font/google", () => ({
@@ -11,7 +12,6 @@ vi.mock("next/font/google", () => ({
 vi.mock("next/image", () => ({
   __esModule: true,
   default: (props: Record<string, unknown>) => {
-    const { createElement } = require("react");
     const { unoptimized, priority, fill, ...rest } = props as Record<string, unknown> & {
       unoptimized?: boolean;
       priority?: boolean;
@@ -28,7 +28,6 @@ vi.mock("next/image", () => ({
 vi.mock("next/link", () => ({
   __esModule: true,
   default: ({ children, href, ...props }: { children: React.ReactNode; href: string }) => {
-    const { createElement } = require("react");
     return createElement("a", { href, ...props }, children);
   },
 }));
@@ -54,14 +53,13 @@ vi.mock("sonner", () => ({
   Toaster: () => null,
 }));
 
-// Suppress console.warn/error in tests unless needed
+// Suppress console.warn in tests unless needed
 const originalWarn = console.warn;
-const originalError = console.error;
 beforeAll(() => {
-  vi.spyOn(console, "warn").mockImplementation((...args) => {
-    // allow our explicit warn checks but suppress noisy Firebase warnings
-    if (typeof args[0] === "string" && args[0].includes("Firebase admin")) return;
-    originalWarn(...args);
+  vi.spyOn(console, "warn").mockImplementation((...args: unknown[]) => {
+    if (typeof args[0] === "string" && (args[0] as string).includes("Firebase admin")) return;
+    // eslint-disable-next-line no-console
+    originalWarn(...(args as [unknown, ...unknown[]]));
   });
 });
 afterAll(() => {
