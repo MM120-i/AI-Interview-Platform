@@ -1,6 +1,6 @@
 import Vapi from "@vapi-ai/web";
 
-export const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN!);
+export const vapi = new Vapi(process.env.NEXT_VAPI_WEB_TOKEN!);
 
 // Boiler plait code
 // Start voice conversation
