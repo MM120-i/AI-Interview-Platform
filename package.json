@@ -47,6 +47,7 @@
     "typescript": "7.0.2"
   },
   "overrides": {
-    "jose": "4.15.9"
+    "jose": "4.15.9",
+    "uuid": "11.1.1"
   }
 }
