@@ -2,69 +2,58 @@ import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
 import { groq } from "@ai-sdk/groq";
 import { generateText } from "ai";
+import { z } from "zod";
 
-export const GET = async () => {
-  return Response.json({ success: true, data: "Thank u" }, { status: 200 });
+const BodySchema = z.object({
+  type: z.string(),
+  role: z.string(),
+  level: z.string(),
+  techstack: z.union([z.string(), z.array(z.string())]),
+  amount: z.coerce.number().min(1).max(10),
+  userid: z.string(),
+});
+
+const parseQuestions = (text: string): string[] => {
+  const block = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = block ? block[1] : text;
+  const match = candidate.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error("No JSON array");
+  return JSON.parse(match[0]);
 };
 
-export const POST = async (request: Request) => {
-  const { type, role, level, techstack, amount, userid } = await request.json();
+export const GET = async () => {
+  return Response.json({ success: true, data: "Ready" }, { status: 200 });
+};
+
+export const POST = async (req: Request) => {
+  const { type, role, level, techstack, amount, userid } = BodySchema.parse(await req.json());
+  const prompt = `Prepare questions for a job interview.
+    Role: ${role}, Level: ${level}, Tech: ${techstack}, Focus: ${type}, Amount: ${amount}
+    Return ONLY JSON: ["Q1", "Q2", ...] — no "/" or "*"`;
+
+  let questions: string;
 
   try {
-    const parseQuestions = (text: string): string[] => {
-      const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const candidate = codeBlock ? codeBlock[1] : text;
-      const arrayMatch = candidate.match(/\[[\s\S]*\]/);
-
-      if (!arrayMatch)
-        throw new SyntaxError(`No JSON array found in model output: ${text.slice(0, 500)}`);
-
-      return JSON.parse(arrayMatch[0]);
-    };
-
-    // TODO: Groq free model is used for now to get it working, but we may need to change this out later.
-    const { text: questions } = await generateText({
-      model: groq("openai/gpt-oss-20b"),
-      prompt: `Prepare questions for a job interview. 
-        The job role is ${role}.
-        The job experience level is ${level}.
-        The tech stack used in the job is: ${techstack}.
-        The focus between behavioural and technical questions should lean towards: ${type}.
-        The amount of questions required is: ${amount}.
-        Please return only the questions, without any additional text.
-        The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
-        Return the questions formatted like this:
-        ["Question 1", "Question 2", "Question 3"]
-        
-        Thank you! <3
-    `,
-    });
-
-    const interview = {
-      role,
-      type,
-      level,
-      techstack:
-        typeof techstack === "string"
-          ? techstack.split(",").map((s: string) => s.trim())
-          : techstack,
-      questions: parseQuestions(questions),
-      userid: userid,
-      finalized: true,
-      coverImage: getRandomInterviewCover(userid),
-      createdAt: new Date().toISOString(),
-    };
-
-    await db.collection("interviews").add(interview);
-
-    return Response.json(
-      {
-        success: true,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error(error);
-    return Response.json({ success: false, error }, { status: 500 });
+    const r = await generateText({ model: groq("openai/gpt-oss-20b"), prompt });
+    questions = r.text;
+    parseQuestions(questions); // validate before fallback
+  } catch (primaryError) {
+    console.warn("Primary LLM failed, fallback to groq/compound", primaryError);
+    const r = await generateText({ model: groq("groq/compound"), prompt });
+    questions = r.text;
   }
+
+  await db.collection("interviews").add({
+    role,
+    type,
+    level,
+    techstack: Array.isArray(techstack) ? techstack : techstack.split(",").map((s) => s.trim()),
+    questions: parseQuestions(questions), // robust
+    userid,
+    finalized: true,
+    coverImage: getRandomInterviewCover(userid),
+    createdAt: new Date().toISOString(),
+  });
+
+  return Response.json({ success: true });
 };
