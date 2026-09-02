@@ -10,10 +10,15 @@ export const useVoiceInterview = (provider: VoiceProvider = "openai-realtime") =
   const start = useCallback(
     async (questions: string[]) => {
       setStatus("CONNECTING");
+
       try {
         if (provider === "openai-realtime") {
           const res = await fetch("/api/realtime/session", { method: "POST" });
-          if (!res.ok) throw new Error(await res.text());
+
+          if (!res.ok) {
+            throw new Error(await res.text());
+          }
+
           const { client_secret } = await res.json();
           // TODO: setup WebRTC with client_secret.value + questions
           // const pc = new RTCPeerConnection(); pc.setRemoteDescription(...)
