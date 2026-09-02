@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { Mona_Sans } from "next/font/google";
 import "@/app/globals.css";
 import { Toaster } from "sonner";
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
   description: "An AI powered platfrom for preping for mock interviews",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className={`${monaSans.className} antialiaseds pattern`}>
