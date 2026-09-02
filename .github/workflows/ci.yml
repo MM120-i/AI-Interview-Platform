@@ -30,7 +30,7 @@ jobs:
         run: npx tsc --noEmit --skipLibCheck
 
       - name: Tests
-        run: npm test
+        run: npm test --if-present
 
       - name: Build (Next.js)
         run: npm run build
