@@ -1,14 +1,31 @@
 // Keeping VAPI as a fallback untouched (constants/index.ts)
+export const VOICES = [
+  "alloy",
+  "ash",
+  "ballad",
+  "coral",
+  "echo",
+  "sage",
+  "shimmer",
+  "verse",
+  "marin",
+  "cedar",
+] as const;
 
-export const VOICES = ["alloy", "nova", "shimmer", "onyx"] as const;
 export type Voice = (typeof VOICES)[number];
 
 // TODO: Change the random names, change and make it better later.
 export const VOICE_NAMES: Record<Voice, string> = {
   alloy: "Sarah",
-  nova: "Nova",
+  ash: "Alex",
+  ballad: "Jordan",
+  cedar: "Taylor",
+  coral: "Morgan",
+  echo: "David",
+  marin: "Emma",
+  sage: "Sofia",
   shimmer: "Shimmer",
-  onyx: "Onyx",
+  verse: "Chris",
 };
 
 export type RealtimeConfig = {
@@ -22,7 +39,7 @@ export const getRealtimeConfig = (params: {
   role: string;
   level: string;
   techstack: string | string[];
-  username: string[];
+  username: string;
   questions: string[];
 }): RealtimeConfig => {
   const { role, level, techstack, username, questions } = params;
