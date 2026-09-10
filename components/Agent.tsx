@@ -6,7 +6,7 @@ import { CALL_STATUS, useVoiceInterview, type VoiceProvider } from "@/lib/voice/
 import { useCallback, useState } from "react";
 
 const provider: VoiceProvider =
-  process.env.NEXT_PUBIC_VOICE_PROVIDER === "vapi" ? "vapi" : "openai-realtime";
+  process.env.NEXT_PUBLIC_VOICE_PROVIDER === "vapi" ? "vapi" : "openai-realtime";
 
 const Agent = ({ userName, questions = [] }: AgentProps) => {
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +39,7 @@ const Agent = ({ userName, questions = [] }: AgentProps) => {
         <div className="card-interviewer">
           <div className="avatar">
             <Image
-              src={"/ai-avatar.png"}
+              src="/ai-avatar.png"
               alt="AI Interviewer"
               width={65}
               height={54}
@@ -53,8 +53,8 @@ const Agent = ({ userName, questions = [] }: AgentProps) => {
         <div className="card-border">
           <div className="card-content">
             <Image
-              src={"/user-avatar.png"}
-              alt="user avatar"
+              src="/user-avatar.png"
+              alt="User avatar"
               width={540}
               height={540}
               className="size-[120] rounded-full object-cover"
@@ -77,13 +77,13 @@ const Agent = ({ userName, questions = [] }: AgentProps) => {
 
       <div className="flex w-full justify-center">
         {isActive ? (
-          <Button type="button" className={"btn-disconnect"} onClick={stop}>
+          <Button type="button" className="btn-disconnect" onClick={stop}>
             End Interview
           </Button>
         ) : (
           <Button
             type="button"
-            className={"btn-call"}
+            className="btn-call"
             onClick={handleStart}
             disabled={isConnecting}
           >
