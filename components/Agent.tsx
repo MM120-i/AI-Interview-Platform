@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 const provider: VoiceProvider =
   process.env.NEXT_PUBLIC_VOICE_PROVIDER === "vapi" ? "vapi" : "openai-realtime";
 
-const Agent = ({ userName, questions = [] }: AgentProps) => {
+const Agent = ({ userName, questions = [], onFinished }: AgentProps) => {
   const [error, setError] = useState<string | null>(null);
 
   const handleError = useCallback((voiceError: Error) => {
@@ -17,6 +17,7 @@ const Agent = ({ userName, questions = [] }: AgentProps) => {
 
   const { status, transcript, audioRef, start, stop } = useVoiceInterview(provider, {
     onError: handleError,
+    onFinished,
   });
 
   const isConnecting = status === CALL_STATUS.CONNECTING;
@@ -81,12 +82,7 @@ const Agent = ({ userName, questions = [] }: AgentProps) => {
             End Interview
           </Button>
         ) : (
-          <Button
-            type="button"
-            className="btn-call"
-            onClick={handleStart}
-            disabled={isConnecting}
-          >
+          <Button type="button" className="btn-call" onClick={handleStart} disabled={isConnecting}>
             {isConnecting ? ". . ." : "Start Interview"}
           </Button>
         )}
