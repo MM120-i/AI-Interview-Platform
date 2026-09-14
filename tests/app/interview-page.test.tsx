@@ -21,9 +21,10 @@ vi.mock("@/lib/actions/interviews.actions", () => ({
 vi.mock("next/navigation", () => ({
   redirect: mockRedirect,
   notFound: mockNotFound,
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
 }));
 
-vi.mock("@/components/Agent", () => ({
+vi.mock("@/components/InterviewSession", () => ({
   default: ({ userName, questions }: { userName: string; questions: string[] }) => (
     <div data-testid="agent" data-questions={JSON.stringify(questions)}>
       {userName}

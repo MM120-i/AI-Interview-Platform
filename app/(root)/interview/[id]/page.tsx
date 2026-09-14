@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import Agent from "@/components/Agent";
+import InterviewSession from "@/components/InterviewSession";
 import { getCurrentUser } from "@/lib/actions/auth.action";
 import { getInterviewById } from "@/lib/actions/interviews.actions";
 
@@ -30,11 +30,10 @@ const InterviewPage = async ({ params }: InterviewPageProps) => {
         </p>
       </div>
 
-      <Agent
+      <InterviewSession
         userName={user.name}
         userId={user.id}
         interviewId={interview.id}
-        type="interview"
         questions={interview.questions}
       />
     </section>
