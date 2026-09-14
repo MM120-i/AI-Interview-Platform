@@ -17,7 +17,7 @@ const InterviewCard = ({
   createdAt,
 }: InterviewCardProps) => {
   const feedback = null as Feedback | null;
-  const normalizedTypes = /mix/gi.test(type) ? "Mixed" : "type";
+  const normalizedTypes = /mix/gi.test(type) ? "Mixed" : type;
   const [fallbackDate] = useState(() => Date.now());
   const formattedDate = useMemo(
     () => dayjs(feedback?.createdAt || createdAt || fallbackDate).format("MMM D, YYYY"),

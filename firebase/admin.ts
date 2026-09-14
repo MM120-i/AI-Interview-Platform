@@ -39,6 +39,7 @@ const initFirebaseAdmin = () => {
     return { auth: getAuth(), db: getFirestore() };
   } catch (e) {
     console.error("Firebase admin getAuth/getFirestore failed:", e);
+    console.warn("test");
 
     return {
       auth: null as unknown as ReturnType<typeof getAuth>,

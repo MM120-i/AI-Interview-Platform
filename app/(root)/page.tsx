@@ -1,10 +1,20 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import Image from "next/image";
-import { dummyInterviews } from "@/constants";
 import InterviewCard from "@/components/InterviewCard";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/actions/auth.action";
+import { getInterviewByUserId } from "@/lib/actions/interviews.actions";
 
-const page = () => {
+const page = async () => {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/sign-in");
+  }
+
+  const interviews = await getInterviewByUserId(user.id);
+
   return (
     <>
       <section className="card-cts">
@@ -28,26 +38,30 @@ const page = () => {
 
       <section className="mt-8 flex flex-col gap-6">
         <h2>Your Interviews</h2>
+
         <div className="interviews-section">
-          {dummyInterviews.map((interview) => (
-            <InterviewCard
-              key={interview.id}
-              interviewId={interview.id}
-              userId={interview.userId}
-              role={interview.role}
-              type={interview.type}
-              techstack={interview.techstack}
-              createdAt={interview.createdAt}
-            />
-          ))}
-          {/* <p>You have not taken any interviews yet</p> */}
+          {interviews.length === 0 ? (
+            <p>You have not taken any interviews yet.</p>
+          ) : (
+            interviews.map((interview) => (
+              <InterviewCard
+                key={interview.id}
+                interviewId={interview.id}
+                userId={interview.userId}
+                role={interview.role}
+                type={interview.type}
+                techstack={interview.techstack}
+                createdAt={interview.createdAt}
+              />
+            ))
+          )}
         </div>
       </section>
 
       <section className="mt-8 flex flex-col gap-8">
         <h2>Take an interview</h2>
         <div className="interviews-section">
-          {dummyInterviews.map((interview) => (
+          {/* {dummyInterviews.map((interview) => (
             <InterviewCard
               key={interview.id}
               interviewId={interview.id}
@@ -57,7 +71,7 @@ const page = () => {
               techstack={interview.techstack}
               createdAt={interview.createdAt}
             />
-          ))}
+          ))} */}
         </div>
       </section>
     </>
