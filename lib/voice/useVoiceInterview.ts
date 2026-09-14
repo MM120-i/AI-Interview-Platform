@@ -249,7 +249,7 @@ export const useVoiceInterview = (
     [cleanup, finish, handleRealtimeEvent]
   );
 
-  const startVapi = useCallback(async () => {
+  const startVapi = useCallback(async ({ username, questions }: StartOptions) => {
     const token = process.env.NEXT_PUBLIC_VAPI_WEB_TOKEN;
     const assistantId = process.env.NEXT_PUBLIC_VAPI_ASSISTANT_ID;
 
@@ -272,7 +272,12 @@ export const useVoiceInterview = (
       }
     });
 
-    await vapi.start(assistantId);
+    await vapi.start(assistantId, {
+      variableValues: {
+        username,
+        questions: questions.join("\n"),
+      },
+    });
   }, [appendTranscript, cleanup, finish]);
 
   const start = useCallback(
@@ -290,7 +295,7 @@ export const useVoiceInterview = (
 
       try {
         if (provider === "vapi") {
-          await startVapi();
+          await startVapi(startOptions);
         } else {
           await startOpenAI(startOptions);
         }

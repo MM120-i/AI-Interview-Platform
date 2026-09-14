@@ -1,12 +1,16 @@
-import Agent from "@/components/Agent";
+import InterviewForm from "@/components/InterviewForm";
 
-const page = () => {
+const InterviewPage = () => {
   return (
-    <>
-      <h3>Interview Generation</h3>
-      <Agent userName="You" userId="user1" type="generate" />
-    </>
+    <section className="flex flex-col gap-8">
+      <div>
+        <h1>Create an interview</h1>
+        <p>Choose the role and topics you want to practice</p>
+      </div>
+
+      <InterviewForm />
+    </section>
   );
 };
 
-export default page;
+export default InterviewPage;

@@ -3,57 +3,130 @@ import { getRandomInterviewCover } from "@/lib/utils";
 import { groq } from "@ai-sdk/groq";
 import { generateText } from "ai";
 import { z } from "zod";
+import { getCurrentUser } from "@/lib/actions/auth.action";
 
 const BodySchema = z.object({
-  type: z.string(),
-  role: z.string(),
-  level: z.string(),
+  type: z.enum(["technical", "behavioral", "mixed"]),
+  role: z.string().trim().min(2),
+  level: z.string().trim().min(1),
   techstack: z.union([z.string(), z.array(z.string())]),
-  amount: z.coerce.number().min(1).max(10),
-  userid: z.string(),
+  amount: z.coerce.number().int().min(1).max(10),
 });
 
-const parseQuestions = (text: string): string[] => {
-  const block = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const candidate = block ? block[1] : text;
+const QuestionsSchema = z.array(z.string()).min(1);
+
+const parseQuestions = (text: string, expectedAmount?: number): string[] => {
+  const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = codeBlock ? codeBlock[1] : text;
   const match = candidate.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error("No JSON array");
-  return JSON.parse(match[0]);
+
+  if (!match) {
+    throw new Error("The AI did not return a question list");
+  }
+
+  const questions = QuestionsSchema.parse(JSON.parse(match[0]));
+
+  if (expectedAmount !== undefined && questions.length !== expectedAmount) {
+    throw new Error(
+      `Expected ${expectedAmount} questions, received ${questions.length}`
+    );
+  }
+
+  return questions;
 };
 
 export const GET = async () => {
   return Response.json({ success: true, data: "Ready" }, { status: 200 });
 };
 
-export const POST = async (req: Request) => {
-  const { type, role, level, techstack, amount, userid } = BodySchema.parse(await req.json());
-  const prompt = `Prepare questions for a job interview.
-    Role: ${role}, Level: ${level}, Tech: ${techstack}, Focus: ${type}, Amount: ${amount}
-    Return ONLY JSON: ["Q1", "Q2", ...] — no "/" or "*"`;
-
-  let questions: string;
-
-  try {
-    const r = await generateText({ model: groq("openai/gpt-oss-20b"), prompt });
-    questions = r.text;
-    parseQuestions(questions); // validate before fallback
-  } catch (primaryError) {
-    console.warn("Primary LLM failed, fallback to groq/compound", primaryError);
-    const r = await generateText({ model: groq("groq/compound"), prompt });
-    questions = r.text;
+export const POST = async (request: Request) => {
+  if (!db) {
+    return Response.json({ error: "Database is not configured" }, { status: 500 });
   }
 
-  await db.collection("interviews").add({
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  let body: unknown;
+
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Request body must be valid JSON" }, { status: 400 });
+  }
+
+  const parsedBody = BodySchema.safeParse(body);
+
+  if (!parsedBody.success) {
+    return Response.json(
+      {
+        error: "Invalid interview data",
+        details: parsedBody.error.flatten(),
+      },
+      { status: 400 }
+    );
+  }
+
+  const { type, role, level, techstack, amount } = parsedBody.data;
+
+  const techstackList = (Array.isArray(techstack) ? techstack : techstack.split(","))
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (techstackList.length === 0) {
+    return Response.json(
+      { error: "At least one technology is required" },
+      { status: 400 }
+    );
+  }
+
+  const prompt = `Prepare ${amount} job interview questions.
+    Role: ${role}
+    Experience level: ${level}
+    Tech stack: ${techstackList.join(", ")}
+    Interview focus: ${type}
+
+    Return only a JSON array of question strings.
+    Do not include markdown or additional text.`;
+
+  let questions: string[];
+
+  try {
+    const result = await generateText({
+      model: groq("openai/gpt-oss-20b"),
+      prompt,
+    });
+
+    questions = parseQuestions(result.text, amount);
+  } catch {
+    const fallback = await generateText({
+      model: groq("groq/compound"),
+      prompt,
+    });
+
+    questions = parseQuestions(fallback.text, amount);
+  }
+
+  const interview = await db.collection("interviews").add({
     role,
     type,
     level,
-    techstack: Array.isArray(techstack) ? techstack : techstack.split(",").map((s) => s.trim()),
-    questions: parseQuestions(questions), // robust
-    userid,
-    finalized: true,
-    coverImage: getRandomInterviewCover(userid),
+    techstack: techstackList,
+    questions,
+    userid: user.id,
+    finalized: false,
+    coverImage: getRandomInterviewCover(user.id),
     createdAt: new Date().toISOString(),
   });
 
-  return Response.json({ success: true });
+  return Response.json(
+    {
+      success: true,
+      interviewId: interview.id,
+    },
+    { status: 201 }
+  );
 };

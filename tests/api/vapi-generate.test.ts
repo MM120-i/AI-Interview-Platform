@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const mockAdd = vi.fn().mockResolvedValue({});
-const mockGenerateText = vi.fn();
+const { mockAdd, mockGenerateText, mockGetCurrentUser } = vi.hoisted(() => ({
+  mockAdd: vi.fn().mockResolvedValue({ id: "interview-1" }),
+  mockGenerateText: vi.fn(),
+  mockGetCurrentUser: vi.fn(),
+}));
 
 vi.mock("@/firebase/admin", () => ({
   db: { collection: () => ({ add: mockAdd }) },
+}));
+
+vi.mock("@/lib/actions/auth.action", () => ({
+  getCurrentUser: mockGetCurrentUser,
 }));
 
 vi.mock("ai", () => ({ generateText: (...args: unknown[]) => mockGenerateText(...args) }));
@@ -26,6 +33,11 @@ describe("GET /api/vapi/generate", () => {
 describe("POST /api/vapi/generate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetCurrentUser.mockResolvedValue({
+      id: "user123",
+      name: "Test User",
+      email: "test@example.com",
+    });
   });
 
   const baseBody = {
@@ -37,41 +49,75 @@ describe("POST /api/vapi/generate", () => {
     userid: "user123",
   };
 
+  const createRequest = (body: unknown) =>
+    new Request("http://localhost/api/vapi/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  it("rejects unauthenticated requests", async () => {
+    mockGetCurrentUser.mockResolvedValueOnce(null);
+
+    const res = await POST(createRequest(baseBody));
+
+    expect(res.status).toBe(401);
+    expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockAdd).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    const res = await POST(
+      new Request("http://localhost/api/vapi/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{not valid json",
+      })
+    );
+
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Request body must be valid JSON");
+  });
+
   it("validates body with zod and returns success with primary LLM", async () => {
     mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
 
-    const req = new Request("http://localhost/api/vapi/generate", {
-      method: "POST",
-      body: JSON.stringify(baseBody),
-    });
+    const res = await POST(createRequest(baseBody));
 
-    const res = await POST(req);
-
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
 
     const json = await res.json();
 
     expect(json.success).toBe(true);
+    expect(json.interviewId).toBe("interview-1");
     expect(mockAdd).toHaveBeenCalledWith(
       expect.objectContaining({
         role: "frontend",
         questions: ["Q1", "Q2", "Q3"],
         techstack: ["next.js"],
+        userid: "user123",
+        finalized: false,
       })
     );
   });
 
+  it("uses the authenticated user's ID instead of a client-provided userid", async () => {
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
+
+    const res = await POST(createRequest({ ...baseBody, userid: "attacker-id" }));
+
+    expect(res.status).toBe(201);
+    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({ userid: "user123" }));
+  });
+
   it("handles techstack as array", async () => {
-    mockGenerateText.mockResolvedValueOnce({ text: '["Q1"]' });
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
 
-    const req = new Request("http://localhost/api/vapi/generate", {
-      method: "POST",
-      body: JSON.stringify({ ...baseBody, techstack: ["React", "Next.js"] }),
-    });
+    const res = await POST(createRequest({ ...baseBody, techstack: ["React", "Next.js"] }));
 
-    const res = await POST(req);
-
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(mockAdd).toHaveBeenCalledWith(
       expect.objectContaining({ techstack: ["React", "Next.js"] })
     );
@@ -80,55 +126,97 @@ describe("POST /api/vapi/generate", () => {
   it("falls back to groq/compound when primary fails", async () => {
     mockGenerateText
       .mockRejectedValueOnce(new Error("Primary failed"))
-      .mockResolvedValueOnce({ text: '["Fallback Q"]' });
+      .mockResolvedValueOnce({ text: '["Fallback Q1", "Fallback Q2", "Fallback Q3"]' });
 
-    const req = new Request("http://localhost/api/vapi/generate", {
-      method: "POST",
-      body: JSON.stringify(baseBody),
-    });
+    const res = await POST(createRequest(baseBody));
 
-    const res = await POST(req);
-
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({ questions: ["Fallback Q"] }));
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questions: ["Fallback Q1", "Fallback Q2", "Fallback Q3"],
+      })
+    );
+  });
+
+  it("falls back when the primary model returns the wrong question count", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: '["Only one"]' })
+      .mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
+
+    const res = await POST(createRequest(baseBody));
+
+    expect(res.status).toBe(201);
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ questions: ["Q1", "Q2", "Q3"] })
+    );
+  });
+
+  it("does not persist when both models return the wrong question count", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: '["Primary question"]' })
+      .mockResolvedValueOnce({ text: '["Fallback question"]' });
+
+    await expect(POST(createRequest(baseBody))).rejects.toThrow(
+      "Expected 3 questions, received 1"
+    );
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 
   it("parses questions even with reasoning markdown", async () => {
-    const reasoningText = '**Reasoning** Thinking...\n```json\n["Q1", "Q2"]\n```';
+    const reasoningText =
+      '**Reasoning** Thinking...\n```json\n["Q1", "Q2", "Q3"]\n```';
     mockGenerateText.mockResolvedValueOnce({ text: reasoningText });
 
-    const req = new Request("http://localhost/api/vapi/generate", {
-      method: "POST",
-      body: JSON.stringify(baseBody),
-    });
+    const res = await POST(createRequest(baseBody));
 
-    const res = await POST(req);
-
-    expect(res.status).toBe(200);
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({ questions: ["Q1", "Q2"] }));
+    expect(res.status).toBe(201);
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ questions: ["Q1", "Q2", "Q3"] })
+    );
   });
 
-  it("rejects invalid body (zod)", async () => {
-    const req = new Request("http://localhost/api/vapi/generate", {
-      method: "POST",
-      body: JSON.stringify({ type: "mixed" }), // missing fields
-    });
+  it("returns 400 for an invalid body", async () => {
+    const res = await POST(createRequest({ type: "mixed" }));
+    const json = await res.json();
 
-    await expect(POST(req)).rejects.toThrow();
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Invalid interview data");
   });
 
   it("trims techstack string with commas", async () => {
-    mockGenerateText.mockResolvedValueOnce({ text: '["Q1"]' });
-    const req = new Request("http://localhost/api/vapi/generate", {
-      method: "POST",
-      body: JSON.stringify({ ...baseBody, techstack: "React, Next.js , Tailwind" }),
-    });
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
+    const res = await POST(
+      createRequest({ ...baseBody, techstack: "React, Next.js , Tailwind" })
+    );
 
-    const res = await POST(req);
-
+    expect(res.status).toBe(201);
     expect(mockAdd).toHaveBeenCalledWith(
       expect.objectContaining({ techstack: ["React", "Next.js", "Tailwind"] })
     );
+  });
+
+  it("trims and filters techstack arrays", async () => {
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
+
+    const res = await POST(
+      createRequest({ ...baseBody, techstack: [" React ", "", " Next.js ", "  "] })
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ techstack: ["React", "Next.js"] })
+    );
+  });
+
+  it("returns 400 when the normalized techstack is empty", async () => {
+    const res = await POST(createRequest({ ...baseBody, techstack: " ,  " }));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toMatch(/technology/i);
+    expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 });

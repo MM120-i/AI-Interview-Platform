@@ -54,6 +54,12 @@ interface AgentProps {
   feedbackId?: string;
   type: "generate" | "interview";
   questions?: string[];
+  onFinished?: (
+    transcript: {
+      role: "user" | "assistant";
+      content: string;
+    }[]
+  ) => void;
 }
 
 interface RouteParams {
