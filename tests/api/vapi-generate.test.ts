@@ -104,7 +104,7 @@ describe("POST /api/vapi/generate", () => {
   });
 
   it("uses the authenticated user's ID instead of a client-provided userid", async () => {
-    mockGenerateText.mockResolvedValueOnce({ text: '["Q1"]' });
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
 
     const res = await POST(createRequest({ ...baseBody, userid: "attacker-id" }));
 
@@ -113,7 +113,7 @@ describe("POST /api/vapi/generate", () => {
   });
 
   it("handles techstack as array", async () => {
-    mockGenerateText.mockResolvedValueOnce({ text: '["Q1"]' });
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
 
     const res = await POST(createRequest({ ...baseBody, techstack: ["React", "Next.js"] }));
 
@@ -126,23 +126,55 @@ describe("POST /api/vapi/generate", () => {
   it("falls back to groq/compound when primary fails", async () => {
     mockGenerateText
       .mockRejectedValueOnce(new Error("Primary failed"))
-      .mockResolvedValueOnce({ text: '["Fallback Q"]' });
+      .mockResolvedValueOnce({ text: '["Fallback Q1", "Fallback Q2", "Fallback Q3"]' });
 
     const res = await POST(createRequest(baseBody));
 
     expect(res.status).toBe(201);
     expect(mockGenerateText).toHaveBeenCalledTimes(2);
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({ questions: ["Fallback Q"] }));
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        questions: ["Fallback Q1", "Fallback Q2", "Fallback Q3"],
+      })
+    );
+  });
+
+  it("falls back when the primary model returns the wrong question count", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: '["Only one"]' })
+      .mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
+
+    const res = await POST(createRequest(baseBody));
+
+    expect(res.status).toBe(201);
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ questions: ["Q1", "Q2", "Q3"] })
+    );
+  });
+
+  it("does not persist when both models return the wrong question count", async () => {
+    mockGenerateText
+      .mockResolvedValueOnce({ text: '["Primary question"]' })
+      .mockResolvedValueOnce({ text: '["Fallback question"]' });
+
+    await expect(POST(createRequest(baseBody))).rejects.toThrow(
+      "Expected 3 questions, received 1"
+    );
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 
   it("parses questions even with reasoning markdown", async () => {
-    const reasoningText = '**Reasoning** Thinking...\n```json\n["Q1", "Q2"]\n```';
+    const reasoningText =
+      '**Reasoning** Thinking...\n```json\n["Q1", "Q2", "Q3"]\n```';
     mockGenerateText.mockResolvedValueOnce({ text: reasoningText });
 
     const res = await POST(createRequest(baseBody));
 
     expect(res.status).toBe(201);
-    expect(mockAdd).toHaveBeenCalledWith(expect.objectContaining({ questions: ["Q1", "Q2"] }));
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ questions: ["Q1", "Q2", "Q3"] })
+    );
   });
 
   it("returns 400 for an invalid body", async () => {
@@ -154,7 +186,7 @@ describe("POST /api/vapi/generate", () => {
   });
 
   it("trims techstack string with commas", async () => {
-    mockGenerateText.mockResolvedValueOnce({ text: '["Q1"]' });
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
     const res = await POST(
       createRequest({ ...baseBody, techstack: "React, Next.js , Tailwind" })
     );
@@ -163,5 +195,28 @@ describe("POST /api/vapi/generate", () => {
     expect(mockAdd).toHaveBeenCalledWith(
       expect.objectContaining({ techstack: ["React", "Next.js", "Tailwind"] })
     );
+  });
+
+  it("trims and filters techstack arrays", async () => {
+    mockGenerateText.mockResolvedValueOnce({ text: '["Q1", "Q2", "Q3"]' });
+
+    const res = await POST(
+      createRequest({ ...baseBody, techstack: [" React ", "", " Next.js ", "  "] })
+    );
+
+    expect(res.status).toBe(201);
+    expect(mockAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ techstack: ["React", "Next.js"] })
+    );
+  });
+
+  it("returns 400 when the normalized techstack is empty", async () => {
+    const res = await POST(createRequest({ ...baseBody, techstack: " ,  " }));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toMatch(/technology/i);
+    expect(mockGenerateText).not.toHaveBeenCalled();
+    expect(mockAdd).not.toHaveBeenCalled();
   });
 });

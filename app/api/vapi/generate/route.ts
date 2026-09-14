@@ -15,7 +15,7 @@ const BodySchema = z.object({
 
 const QuestionsSchema = z.array(z.string()).min(1);
 
-const parseQuestions = (text: string): string[] => {
+const parseQuestions = (text: string, expectedAmount?: number): string[] => {
   const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const candidate = codeBlock ? codeBlock[1] : text;
   const match = candidate.match(/\[[\s\S]*\]/);
@@ -24,7 +24,15 @@ const parseQuestions = (text: string): string[] => {
     throw new Error("The AI did not return a question list");
   }
 
-  return QuestionsSchema.parse(JSON.parse(match[0]));
+  const questions = QuestionsSchema.parse(JSON.parse(match[0]));
+
+  if (expectedAmount !== undefined && questions.length !== expectedAmount) {
+    throw new Error(
+      `Expected ${expectedAmount} questions, received ${questions.length}`
+    );
+  }
+
+  return questions;
 };
 
 export const GET = async () => {
@@ -32,14 +40,14 @@ export const GET = async () => {
 };
 
 export const POST = async (request: Request) => {
+  if (!db) {
+    return Response.json({ error: "Database is not configured" }, { status: 500 });
+  }
+
   const user = await getCurrentUser();
 
   if (!user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!db) {
-    return Response.json({ error: "Database is not configured" }, { status: 500 });
   }
 
   let body: unknown;
@@ -64,9 +72,16 @@ export const POST = async (request: Request) => {
 
   const { type, role, level, techstack, amount } = parsedBody.data;
 
-  const techstackList = Array.isArray(techstack)
-    ? techstack
-    : techstack.split(",").map((item) => item.trim()).filter(Boolean);
+  const techstackList = (Array.isArray(techstack) ? techstack : techstack.split(","))
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (techstackList.length === 0) {
+    return Response.json(
+      { error: "At least one technology is required" },
+      { status: 400 }
+    );
+  }
 
   const prompt = `Prepare ${amount} job interview questions.
     Role: ${role}
@@ -77,7 +92,7 @@ export const POST = async (request: Request) => {
     Return only a JSON array of question strings.
     Do not include markdown or additional text.`;
 
-  let questionsText: string;
+  let questions: string[];
 
   try {
     const result = await generateText({
@@ -85,18 +100,15 @@ export const POST = async (request: Request) => {
       prompt,
     });
 
-    questionsText = result.text;
-    parseQuestions(questionsText);
+    questions = parseQuestions(result.text, amount);
   } catch {
     const fallback = await generateText({
       model: groq("groq/compound"),
       prompt,
     });
 
-    questionsText = fallback.text;
+    questions = parseQuestions(fallback.text, amount);
   }
-
-  const questions = parseQuestions(questionsText);
 
   const interview = await db.collection("interviews").add({
     role,
